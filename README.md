@@ -1,28 +1,57 @@
 # Authentication Architecture Guide
 
-A small, documented FastAPI example showing how an API authenticates users with password hashing and signed JWT access tokens.
+A beginner-friendly, runnable FastAPI example showing password-based authentication with bcrypt password hashing and signed JWT access tokens.
 
-> **Scope:** This is a teaching/demo repository, not an audit of an existing application. Production systems need HTTPS, a persistent user store, key rotation, rate limiting, monitoring, and a reviewed deployment configuration.
+> **Educational scope:** This is a learning project, not a production-ready identity platform or a security audit. It uses an in-memory user store and has no refresh-token, logout/revocation, email-verification, password-reset, MFA, or role-based authorization flow.
 
-## What is included
+## Architecture at a glance
 
-- `app/main.py` — registration, login, and protected profile endpoints.
-- `app/security.py` — password hashing and JWT creation/verification.
-- `app/store.py` — deliberately simple in-memory user store for the demo.
-- `docs/` — architecture, request flow, and credential/token handling.
-- `tests/` — basic tests for the core token and password behavior.
-- `.env.example` — configuration names; never put real secrets here.
+- **FastAPI routes** receive registration, login, and protected-profile requests.
+- **Security helpers** hash passwords with bcrypt and sign/verify JWTs.
+- **In-memory store** holds demo user records while the process is running.
+- **Bearer-token dependency** protects the `GET /me` endpoint.
+
+## Repository map
+
+```text
+.
+├── app/
+│   ├── __init__.py
+│   ├── main.py                 # HTTP routes and request validation
+│   ├── security.py             # bcrypt and JWT helpers
+│   └── store.py                # in-memory demo user store
+├── docs/
+│   ├── COMPONENTS.md           # component responsibilities
+│   ├── REQUEST_FLOW.md          # registration/login/protected flow
+│   └── CREDENTIALS_AND_TOKENS.md
+├── tests/
+│   └── test_security.py
+├── .env.example
+├── .gitignore
+├── LICENSE
+└── requirements.txt
+```
+
+## Components
+
+See [docs/COMPONENTS.md](docs/COMPONENTS.md).
 
 ## Request flow
 
-1. A client sends an email and password to `POST /register` or `POST /login` over HTTPS.
-2. The server hashes new passwords before storing them. It never stores the original password.
-3. On login, the server verifies the submitted password against the stored password hash.
-4. If valid, the server signs a short-lived JWT access token.
-5. The client sends that token in `Authorization: Bearer <token>`.
-6. The API verifies the signature and expiry before returning protected data.
+1. A client submits an email and password to `POST /register` or `POST /login`.
+2. Registration hashes the password before storing the record.
+3. Login verifies the submitted password against the stored bcrypt hash.
+4. Successful login returns a short-lived signed JWT access token.
+5. The client sends `Authorization: Bearer <token>` to `GET /me`.
+6. The API verifies the token signature and expiry before returning the user's profile.
 
-See [the component map](docs/COMPONENTS.md), [the request flow](docs/REQUEST_FLOW.md), and [credential handling](docs/CREDENTIALS_AND_TOKENS.md).
+See [docs/REQUEST_FLOW.md](docs/REQUEST_FLOW.md).
+
+## Credentials and tokens
+
+Passwords are never stored as plaintext. bcrypt stores a salted password hash. JWTs are signed (not encrypted), so their claims can be decoded by anyone holding the token. Never put passwords, API keys, or other secrets in JWT claims.
+
+See [docs/CREDENTIALS_AND_TOKENS.md](docs/CREDENTIALS_AND_TOKENS.md).
 
 ## Run locally
 
@@ -30,55 +59,63 @@ Requires Python 3.11+.
 
 ```bash
 python -m venv .venv
-# Windows: .venv\\Scripts\\activate
-# macOS/Linux: source .venv/bin/activate
+# macOS/Linux
+source .venv/bin/activate
+# Windows PowerShell
+# .venv\Scripts\Activate.ps1
+
 pip install -r requirements.txt
+```
+
+Copy `.env.example` to `.env` and set a long random `JWT_SECRET` before running. Then:
+
+```bash
 uvicorn app.main:app --reload
 ```
 
-Open `http://127.0.0.1:8000/docs` for the interactive API documentation.
+Open [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs) for the interactive API docs.
 
-Set `JWT_SECRET` to a long random value before running outside a local demo. The fallback secret exists only to make the sample easy to start and must not be used in production.
-
-## Example
+## Try the API
 
 Register:
 
 ```bash
-curl -X POST http://127.0.0.1:8000/register \\
-  -H "Content-Type: application/json" \\
+curl -X POST http://127.0.0.1:8000/register \
+  -H "Content-Type: application/json" \
   -d '{"email":"learner@example.com","password":"a-long-demo-password"}'
 ```
 
 Login:
 
 ```bash
-curl -X POST http://127.0.0.1:8000/login \\
-  -H "Content-Type: application/json" \\
+curl -X POST http://127.0.0.1:8000/login \
+  -H "Content-Type: application/json" \
   -d '{"email":"learner@example.com","password":"a-long-demo-password"}'
 ```
 
-Use the returned access token:
+Copy the returned `access_token`, then:
 
 ```bash
-curl http://127.0.0.1:8000/me \\
+curl http://127.0.0.1:8000/me \
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
 ```
 
-## Important limitations
-
-- The user store is in memory: accounts disappear when the process restarts.
-- There is no refresh-token endpoint, logout/revocation store, email verification, password reset, or role/permission system.
-- The example uses a shared HMAC signing secret. Production key management and rotation need a deliberate design.
-- JWT payloads are encoded, not encrypted. Do not put passwords or secrets in claims.
-- Do not commit `.env` files, API keys, private keys, or real user data.
-
-## Tests
+## Run tests
 
 ```bash
 pytest -q
 ```
 
+## Security boundaries and production gaps
+
+- The user store is in memory; all accounts disappear when the process restarts. It is not safe for multiple workers.
+- The demo has no refresh-token endpoint, logout/revocation list, email verification, password reset, MFA, or authorization roles.
+- Use HTTPS in deployment. Do not send credentials over plain HTTP outside localhost.
+- Replace the demo secret with a high-entropy secret from a secret manager. Rotate keys deliberately.
+- Add persistent database storage, rate limiting, audit logging, monitoring, account lockout/abuse controls, and security tests before production.
+- JWT payloads are encoded, not encrypted. Keep claims minimal.
+- Never commit `.env`, credentials, tokens, private keys, or real user data.
+
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT. See [LICENSE](LICENSE).

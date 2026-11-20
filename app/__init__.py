@@ -1,0 +1,1 @@
+"""Authentication architecture demo package."""
