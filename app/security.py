@@ -4,7 +4,9 @@ from datetime import datetime, timedelta, timezone
 
 import bcrypt
 import jwt
-from jwt import InvalidTokenError
+from dotenv import load_dotenv
+
+load_dotenv()
 
 ALGORITHM = "HS256"
 ACCESS_TOKEN_MINUTES = 15
