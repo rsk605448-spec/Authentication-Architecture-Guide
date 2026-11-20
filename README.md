@@ -34,7 +34,7 @@ A beginner-friendly, runnable FastAPI example showing password-based authenticat
 
 ## Components
 
-See [docs/COMPONENTS.md](docs/COMPONENTS.md).
+See [docs/COMPONENTS.md](docs/COMPONENTS.md) for the component map and [docs/CODE_WALKTHROUGH.md](docs/CODE_WALKTHROUGH.md) for a code-level walkthrough with endpoint-to-helper references.
 
 ## Request flow
 
